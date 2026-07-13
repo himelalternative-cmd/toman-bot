@@ -6,7 +6,7 @@ export const EMBED_COLORS = {
   warning: 0xfee75c,
 };
 
-export const FOOTER_TEXT = 'Moderation Bot';
+export const FOOTER_TEXT = 'TOMAN';
 
 // Duration choices offered by /timeout, in milliseconds.
 export const TIMEOUT_DURATIONS = {
