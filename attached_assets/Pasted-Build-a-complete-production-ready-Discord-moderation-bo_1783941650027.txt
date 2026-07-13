@@ -1,0 +1,204 @@
+Build a complete production-ready Discord moderation bot using Node.js (discord.js v14) with a clean, modular structure.
+
+Project Requirements:
+- Language: JavaScript (Node.js)
+- Library: discord.js v14
+- Slash Commands
+- Command Handler
+- Event Handler
+- Environment Variables (.env)
+- JSON-based storage system (no MongoDB)
+- Error handling
+- Permission checks
+- Cooldowns
+- Logging system
+- Embed responses
+- Easy to add new commands
+- Auto register slash commands
+
+Folder Structure:
+
+src/
+├── commands/
+│ ├── moderation/
+│ ├── utility/
+│ ├── fun/
+│ ├── info/
+│ └── admin/
+├── events/
+├── handlers/
+├── utils/
+├── data/
+│ ├── warnings.json
+│ └── config.json
+├── config/
+├── deploy-commands.js
+└── index.js
+
+
+# Moderation System
+
+## /ban
+- Ban a member
+- Optional reason
+- Cannot ban yourself
+- Cannot ban the bot
+- Role hierarchy protection
+- DM user before banning (if possible)
+- Send moderation log
+
+## /unban
+- Unban a user using User ID
+- Reason support
+- Log action
+
+## /kick
+- Kick member
+- Optional reason
+- Permission checks
+- Role hierarchy checks
+- Log action
+
+## /timeout
+- Timeout member
+- Duration support:
+1m
+5m
+10m
+30m
+1h
+6h
+12h
+1d
+3d
+7d
+
+- Reason support
+- Remove timeout option
+- Log action
+
+## /warn
+- Warn users
+- Save warnings inside warnings.json
+- Add warning reason
+- Show total warnings
+- Log action
+
+## /warnings
+- View all warnings of a member
+
+## /removewarn
+- Remove a specific warning
+
+## /clearwarns
+- Delete all warnings of a member
+
+
+# Additional Moderation Commands
+
+/purge
+- Delete 1-100 messages
+
+/slowmode
+- Set channel slowmode
+
+/lock
+- Lock a channel
+
+/unlock
+- Unlock a channel
+
+/nickname
+- Change user nickname
+
+
+# Logging System
+
+Create moderation logs for:
+
+- Ban
+- Unban
+- Kick
+- Timeout
+- Warn
+- Message Delete
+- Message Edit
+- Member Join
+- Member Leave
+- Role Update
+
+Allow admins to set the log channel using:
+
+/setlog
+
+
+# Permission System
+
+Require proper Discord permissions:
+
+- Administrator
+- Ban Members
+- Kick Members
+- Moderate Members
+- Manage Messages
+- Manage Nicknames
+
+Include:
+- Missing permission messages
+- User hierarchy protection
+- Bot hierarchy protection
+
+
+# Utility Commands
+
+/ping
+/serverinfo
+/userinfo
+/avatar
+/banner
+/roleinfo
+/channelinfo
+/botinfo
+/invite
+/help
+/uptime
+
+
+# Welcome System
+
+No database.
+
+Use config.json.
+
+Features:
+
+/setwelcome
+
+- Set welcome channel
+- Custom welcome embed
+- User avatar
+- Server icon
+- Member count
+- Auto role support
+
+
+# Goodbye System
+
+/setgoodbye
+
+Features:
+
+- Leave message
+- Member count
+- Custom embed
+
+
+
+The bot must be ready to run after adding:
+
+DISCORD_TOKEN
+CLIENT_ID
+GUILD_ID (optional)
+
+Create clean, scalable, optimized code with comments.
+IT WILL BE HOSTED WITH RAILWAY

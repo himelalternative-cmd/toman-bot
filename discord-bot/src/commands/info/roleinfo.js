@@ -1,0 +1,27 @@
+import { SlashCommandBuilder } from 'discord.js';
+import { infoEmbed } from '../../utils/embeds.js';
+
+export default {
+  data: new SlashCommandBuilder()
+    .setName('roleinfo')
+    .setDescription('View information about a role.')
+    .addRoleOption((opt) => opt.setName('role').setDescription('The role to look up').setRequired(true)),
+  cooldown: 5,
+  async execute(interaction) {
+    const role = interaction.options.getRole('role', true);
+
+    const embed = infoEmbed(role.name, null)
+      .setColor(role.color || 0x99aab5)
+      .addFields(
+        { name: 'ID', value: role.id, inline: true },
+        { name: 'Color', value: role.hexColor, inline: true },
+        { name: 'Members', value: `${role.members.size}`, inline: true },
+        { name: 'Mentionable', value: role.mentionable ? 'Yes' : 'No', inline: true },
+        { name: 'Hoisted', value: role.hoist ? 'Yes' : 'No', inline: true },
+        { name: 'Position', value: `${role.position}`, inline: true },
+        { name: 'Created', value: `<t:${Math.floor(role.createdTimestamp / 1000)}:D>`, inline: true },
+      );
+
+    await interaction.reply({ embeds: [embed] });
+  },
+};
