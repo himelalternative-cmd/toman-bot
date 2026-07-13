@@ -16,8 +16,20 @@ A production-ready Discord moderation bot built with discord.js v14 — slash co
 - **Moderation:** `/ban`, `/unban`, `/kick`, `/timeout`, `/warn`, `/warnings`, `/removewarn`, `/clearwarns`, `/purge`, `/slowmode`, `/lock`, `/unlock`, `/nickname`, `/setlog`
 - **Info:** `/serverinfo`, `/userinfo`, `/avatar`, `/banner`, `/roleinfo`, `/channelinfo`, `/botinfo`
 - **Utility:** `/ping`, `/invite`, `/help`, `/uptime`
-- **Admin:** `/setwelcome`, `/setgoodbye`
+- **Admin:** `/setwelcome`, `/setgoodbye`, `/createticketpanel`, `/ticketaccess add|remove`, `/settranscriptchannel`
 - **Fun:** `/coinflip`, `/8ball`
+
+## Ticket System
+
+- `/createticketpanel` posts an embed with a **🎫 Create Ticket** button in a channel of your choice. Each panel has its own ticket category and (optional) support role baked in, so different panels can route to different categories/roles.
+- Clicking **Create Ticket** opens a private channel named `ticket-<username>`, visible only to the ticket opener, admins (via the Administrator permission, which always bypasses channel overwrites), ticket staff, and the support role (if set). Each user can only have one open ticket at a time.
+- Every ticket channel has four buttons:
+  - **📌 Claim** — assigns the ticket to whoever clicks it (admins or ticket staff only), renames the channel to `claimed-<username>`, and disables itself.
+  - **✅ Mark as Done** — renames the channel to `done-<username>` and schedules the ticket to auto-delete in 12 hours (checked every 5 minutes, so it survives bot restarts).
+  - **🗑️ Delete Ticket** — asks for confirmation, then deletes the channel.
+  - **📄 Delete + Transcript** — generates an HTML transcript (styled like Discord, via `discord-html-transcripts`) and a plain-text transcript, sends both to the configured transcript channel, then deletes the ticket.
+- `/ticketaccess add|remove` manages who counts as "ticket staff" (stored in `ticketAccess.json`) — these users can claim, mark done, delete, and generate transcripts for any ticket without needing Administrator.
+- `/settranscriptchannel` sets where transcripts get sent. `/setlog` (already used for moderation logs) also receives ticket lifecycle events: created, claimed, marked done, deleted, and transcript created.
 
 ## Adding a New Command
 
@@ -26,9 +38,11 @@ Create a new file under `src/commands/<category>/` exporting `{ data, permission
 ## Data Storage
 
 - `src/data/warnings.json` — per-guild, per-user warning history.
-- `src/data/config.json` — per-guild settings (log channel, welcome/goodbye config).
+- `src/data/config.json` — per-guild settings (log channel, transcript channel, welcome/goodbye config).
+- `src/data/tickets.json` — open/done ticket records per guild (ticket ID, opener, channel, claim/done status).
+- `src/data/ticketAccess.json` — per-guild list of user IDs granted ticket-staff access.
 
-Both files are created automatically on first run if missing.
+All files are created automatically on first run if missing.
 
 ## Hosting on Railway
 

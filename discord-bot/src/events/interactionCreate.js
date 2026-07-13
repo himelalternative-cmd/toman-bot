@@ -1,18 +1,63 @@
-// Routes slash-command interactions to their handler, with permission and cooldown checks.
+// Routes interactions to their handler: slash commands get permission/cooldown
+// checks, ticket buttons get routed to handlers/ticketActions.js.
 import { PermissionsBitField } from 'discord.js';
 import { errorEmbed } from '../utils/embeds.js';
 import { missingPermissionReply, missingBotPermissionReply } from '../utils/permissions.js';
 import { applyCooldown } from '../utils/cooldowns.js';
 import { logger } from '../utils/logger.js';
+import {
+  handleCreateTicketButton,
+  handleClaimButton,
+  handleDoneButton,
+  handleDeleteButton,
+  handleDeleteConfirmButton,
+  handleDeleteCancelButton,
+  handleTranscriptButton,
+} from '../handlers/ticketActions.js';
 
 function permissionLabel(flag) {
   const entry = Object.entries(PermissionsBitField.Flags).find(([, value]) => value === flag);
   return entry ? entry[0].replace(/([A-Z])/g, ' $1').trim() : 'required permission';
 }
 
+async function handleTicketButton(interaction) {
+  if (!interaction.inGuild()) return;
+  const [action, ...rest] = interaction.customId.split(':');
+
+  try {
+    switch (action) {
+      case 'ticket_create':
+        return await handleCreateTicketButton(interaction, rest[0], rest[1]);
+      case 'ticket_claim':
+        return await handleClaimButton(interaction, rest[0]);
+      case 'ticket_done':
+        return await handleDoneButton(interaction, rest[0]);
+      case 'ticket_delete':
+        return await handleDeleteButton(interaction, rest[0]);
+      case 'ticket_delete_confirm':
+        return await handleDeleteConfirmButton(interaction, rest[0]);
+      case 'ticket_delete_cancel':
+        return await handleDeleteCancelButton(interaction);
+      case 'ticket_transcript':
+        return await handleTranscriptButton(interaction, rest[0]);
+      default:
+        return; // Not a ticket button — ignore.
+    }
+  } catch (err) {
+    logger.error(`Error handling ticket button "${interaction.customId}": ${err.stack || err}`);
+    const payload = { embeds: [errorEmbed('Something Went Wrong', 'An unexpected error occurred while processing this action.')], ephemeral: true };
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp(payload).catch(() => {});
+    } else {
+      await interaction.reply(payload).catch(() => {});
+    }
+  }
+}
+
 export default {
   name: 'interactionCreate',
   async execute(interaction, client) {
+    if (interaction.isButton()) return handleTicketButton(interaction);
     if (!interaction.isChatInputCommand()) return;
 
     const command = client.commands.get(interaction.commandName);

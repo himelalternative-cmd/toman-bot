@@ -37,3 +37,13 @@ export function setGoodbyeConfig(guildId, { channelId, message }) {
     goodbye: { channelId, message },
   });
 }
+
+export function setTranscriptChannel(guildId, channelId) {
+  return updateGuildConfig(guildId, { transcriptChannelId: channelId });
+}
+
+export async function getTranscriptChannel(guild) {
+  const config = getGuildConfig(guild.id);
+  if (!config.transcriptChannelId) return null;
+  return guild.channels.cache.get(config.transcriptChannelId) ?? (await guild.channels.fetch(config.transcriptChannelId).catch(() => null));
+}
