@@ -1,0 +1,43 @@
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { successEmbed, errorEmbed } from '../../utils/embeds.js';
+import { joinChannel } from '../../handlers/voiceManager.js';
+import { startRecording, isRecording } from '../../handlers/recording.js';
+
+export default {
+  data: new SlashCommandBuilder()
+    .setName('record')
+    .setDescription('Start recording audio in this voice channel.')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  permissions: [PermissionFlagsBits.ManageGuild],
+  botPermissions: [PermissionFlagsBits.Connect],
+  cooldown: 5,
+  async execute(interaction) {
+    // /record only works from a voice channel's own text chat — not a regular text channel.
+    if (interaction.channel.type !== ChannelType.GuildVoice) {
+      return interaction.reply({
+        embeds: [errorEmbed('BOKACHODA NAKI', 'You can only use the Record command in a VC chat!')],
+        ephemeral: true,
+      });
+    }
+
+    if (isRecording(interaction.guild.id)) {
+      return interaction.reply({
+        embeds: [errorEmbed('Already Recording', 'A recording is already in progress in this server. Use `/save-record` to stop and save it.')],
+        ephemeral: true,
+      });
+    }
+
+    let connection;
+    try {
+      connection = joinChannel(interaction.channel);
+    } catch (err) {
+      return interaction.reply({ embeds: [errorEmbed('Could Not Connect', `I couldn't join this voice channel: ${err.message}`)], ephemeral: true });
+    }
+
+    await startRecording(interaction.guild.id, connection);
+
+    await interaction.reply({
+      embeds: [successEmbed('Recording Started', 'I am now recording everyone speaking in this voice channel. Use `/save-record` to stop and get the audio.')],
+    });
+  },
+};

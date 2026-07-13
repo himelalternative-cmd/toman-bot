@@ -4,6 +4,7 @@ import { Client, GatewayIntentBits, Partials, Collection } from 'discord.js';
 import { loadCommands } from './handlers/commandHandler.js';
 import { loadEvents } from './handlers/eventHandler.js';
 import { sweepDoneTickets } from './handlers/ticketActions.js';
+import { initVc247 } from './handlers/voiceManager.js';
 import { logger } from './utils/logger.js';
 
 // How often to check for "done" tickets that have passed their 12-hour auto-close window.
@@ -21,6 +22,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildVoiceStates,
   ],
   partials: [Partials.Channel, Partials.Message, Partials.GuildMember],
 });
@@ -31,6 +33,7 @@ async function main() {
   await loadCommands(client);
   await loadEvents(client);
   await client.login(process.env.DISCORD_TOKEN);
+  await initVc247(client);
 
   setInterval(() => {
     sweepDoneTickets(client).catch((err) => logger.error(`Ticket auto-close sweep failed: ${err}`));
