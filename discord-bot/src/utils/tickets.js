@@ -1,6 +1,6 @@
 // Ticket storage backed by src/data/tickets.json.
 // Shape: { [guildId]: { counter: number, tickets: { [ticketId]: Ticket } } }
-// Ticket: { id, userId, channelId, createdAt, claimed, claimedBy, status: 'open'|'done', doneAt }
+// Ticket: { id, userId, channelId, type, createdAt, claimed, claimedBy, status: 'open'|'done', doneAt }
 import { readJson, writeJson } from './jsonStorage.js';
 
 const FILE = 'tickets.json';
@@ -11,7 +11,7 @@ function getGuildData(data, guildId) {
 }
 
 /** Creates a new ticket with a sequential, zero-padded ID (e.g. "001") unique per guild. */
-export function createTicket(guildId, { userId, channelId }) {
+export function createTicket(guildId, { userId, channelId, type = null }) {
   const data = readJson(FILE, {});
   const guildData = getGuildData(data, guildId);
   guildData.counter += 1;
@@ -21,6 +21,7 @@ export function createTicket(guildId, { userId, channelId }) {
     id,
     userId,
     channelId,
+    type,
     createdAt: Date.now(),
     claimed: false,
     claimedBy: null,

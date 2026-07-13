@@ -21,8 +21,8 @@ A production-ready Discord moderation bot built with discord.js v14 — slash co
 
 ## Ticket System
 
-- `/createticketpanel` posts an embed with a **🎫 Create Ticket** button in a channel of your choice. Each panel has its own ticket category and (optional) support role baked in, so different panels can route to different categories/roles.
-- Clicking **Create Ticket** opens a private channel named `ticket-<username>`, visible only to the ticket opener, admins (via the Administrator permission, which always bypasses channel overwrites), ticket staff, and the support role (if set). Each user can only have one open ticket at a time.
+- `/createticketpanel` posts an embed with a **"Select a category"** dropdown in a channel of your choice, letting users pick a reason before opening a ticket: 🎁 Claim Reward, ❗ Report, 🪙 Buy Something, ✨ Others. Each panel has its own Discord channel category (where ticket channels get created) and an optional support role baked in — all four ticket reasons on a given panel share that same channel category and role.
+- Picking a category opens a private channel named `ticket-<username>`, visible only to the ticket opener, admins (via the Administrator permission, which always bypasses channel overwrites), ticket staff, and the support role (if set). The chosen category is shown as a field on the ticket embed. Each user can only have one open ticket at a time.
 - Every ticket channel has four buttons:
   - **📌 Claim** — assigns the ticket to whoever clicks it (admins or ticket staff only), renames the channel to `claimed-<username>`, and disables itself.
   - **✅ Mark as Done** — renames the channel to `done-<username>` and schedules the ticket to auto-delete in 12 hours (checked every 5 minutes, so it survives bot restarts).

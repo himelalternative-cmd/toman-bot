@@ -1,6 +1,7 @@
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { successEmbed } from '../../utils/embeds.js';
 import { EMBED_COLORS, FOOTER_TEXT } from '../../config/config.js';
+import { TICKET_TYPE_OPTIONS } from '../../handlers/ticketActions.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -33,11 +34,10 @@ export default {
       .setThumbnail(interaction.guild.iconURL());
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`ticket_create:${category.id}:${supportRole?.id ?? 'none'}`)
-        .setLabel('Create Ticket')
-        .setEmoji('🎫')
-        .setStyle(ButtonStyle.Primary),
+      new StringSelectMenuBuilder()
+        .setCustomId(`ticket_type_select:${category.id}:${supportRole?.id ?? 'none'}`)
+        .setPlaceholder('Select a category')
+        .addOptions(TICKET_TYPE_OPTIONS.map(({ value, label, emoji }) => ({ value, label, emoji }))),
     );
 
     await channel.send({ embeds: [panelEmbed], components: [row] });

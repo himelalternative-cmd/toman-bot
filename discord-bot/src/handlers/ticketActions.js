@@ -20,6 +20,20 @@ import { logger } from '../utils/logger.js';
 
 export const TICKET_DONE_WINDOW_MS = 12 * 60 * 60 * 1000;
 
+// The fixed set of ticket categories shown in the panel's "Select a category" dropdown.
+export const TICKET_TYPE_OPTIONS = [
+  { value: 'claim_reward', label: 'Claim Reward', emoji: '🎁' },
+  { value: 'report', label: 'Report', emoji: '❗' },
+  { value: 'buy_something', label: 'Buy Something', emoji: '🪙' },
+  { value: 'others', label: 'Others', emoji: '✨' },
+];
+
+const TICKET_TYPE_LABELS = Object.fromEntries(TICKET_TYPE_OPTIONS.map(({ value, label, emoji }) => [value, `${emoji} ${label}`]));
+
+function ticketTypeDisplay(type) {
+  return TICKET_TYPE_LABELS[type] ?? 'Unspecified';
+}
+
 function ticketButtonRow(ticketId, { claimDisabled = false, doneDisabled = false } = {}) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`ticket_claim:${ticketId}`).setLabel('Claim').setEmoji('📌').setStyle(ButtonStyle.Primary).setDisabled(claimDisabled),
@@ -51,7 +65,7 @@ async function logTicketEvent(guild, title, description) {
   await logChannel.send({ embeds: [infoEmbed(title, description)] }).catch(() => {});
 }
 
-export async function handleCreateTicketButton(interaction, categoryId, supportRoleId) {
+export async function handleCreateTicketButton(interaction, categoryId, supportRoleId, ticketType = null) {
   const guild = interaction.guild;
 
   const existing = getOpenTicketForUser(guild.id, interaction.user.id);
@@ -106,13 +120,14 @@ export async function handleCreateTicketButton(interaction, categoryId, supportR
     });
   }
 
-  const ticket = createTicket(guild.id, { userId: interaction.user.id, channelId: channel.id });
+  const ticket = createTicket(guild.id, { userId: interaction.user.id, channelId: channel.id, type: ticketType });
 
   const infoEmbedMsg = infoEmbed('🎫 Support Ticket', 'A member of our team will be with you shortly.')
     .addFields(
       { name: 'Opened By', value: `${interaction.user}`, inline: true },
       { name: 'Created', value: `<t:${Math.floor(ticket.createdAt / 1000)}:f>`, inline: true },
       { name: 'Ticket ID', value: `#${ticket.id}`, inline: true },
+      { name: 'Category', value: ticketTypeDisplay(ticket.type), inline: true },
       { name: 'Claim Status', value: 'Unclaimed', inline: true },
       { name: 'Status', value: 'Open', inline: true },
     )
@@ -123,7 +138,11 @@ export async function handleCreateTicketButton(interaction, categoryId, supportR
 
   await interaction.editReply({ embeds: [successEmbed('Ticket Created', `Your ticket has been created: ${channel}`)] });
 
-  await logTicketEvent(guild, 'Ticket Created', `Ticket #${ticket.id} opened by ${interaction.user.tag} in ${channel}.`);
+  await logTicketEvent(
+    guild,
+    'Ticket Created',
+    `Ticket #${ticket.id} (${ticketTypeDisplay(ticket.type)}) opened by ${interaction.user.tag} in ${channel}.`,
+  );
 }
 
 export async function handleClaimButton(interaction, ticketId) {

@@ -20,14 +20,30 @@ function permissionLabel(flag) {
   return entry ? entry[0].replace(/([A-Z])/g, ' $1').trim() : 'required permission';
 }
 
+async function handleTicketTypeSelect(interaction) {
+  if (!interaction.inGuild()) return;
+  const [, categoryId, supportRoleId] = interaction.customId.split(':');
+  const ticketType = interaction.values[0];
+
+  try {
+    await handleCreateTicketButton(interaction, categoryId, supportRoleId, ticketType);
+  } catch (err) {
+    logger.error(`Error handling ticket type select "${interaction.customId}": ${err.stack || err}`);
+    const payload = { embeds: [errorEmbed('Something Went Wrong', 'An unexpected error occurred while processing this action.')], ephemeral: true };
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp(payload).catch(() => {});
+    } else {
+      await interaction.reply(payload).catch(() => {});
+    }
+  }
+}
+
 async function handleTicketButton(interaction) {
   if (!interaction.inGuild()) return;
   const [action, ...rest] = interaction.customId.split(':');
 
   try {
     switch (action) {
-      case 'ticket_create':
-        return await handleCreateTicketButton(interaction, rest[0], rest[1]);
       case 'ticket_claim':
         return await handleClaimButton(interaction, rest[0]);
       case 'ticket_done':
@@ -57,6 +73,9 @@ async function handleTicketButton(interaction) {
 export default {
   name: 'interactionCreate',
   async execute(interaction, client) {
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('ticket_type_select:')) {
+      return handleTicketTypeSelect(interaction);
+    }
     if (interaction.isButton()) return handleTicketButton(interaction);
     if (!interaction.isChatInputCommand()) return;
 
