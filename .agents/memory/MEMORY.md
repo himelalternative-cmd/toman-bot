@@ -1,0 +1,1 @@
+- [Non-web backend service as plain workspace package](non-artifact-workspace-packages.md) — a Discord bot / CLI-only service that doesn't fit any artifact type lives outside `artifacts/`, added manually to `pnpm-workspace.yaml`.
