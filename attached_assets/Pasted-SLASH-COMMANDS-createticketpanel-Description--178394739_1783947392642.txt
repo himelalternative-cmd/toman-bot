@@ -1,0 +1,399 @@
+SLASH COMMANDS
+==================================================
+
+/createticketpanel
+
+Description:
+Creates a professional ticket panel.
+
+Options:
+- Channel
+- Category
+- Support Role (Optional)
+- Embed Title
+- Embed Description
+
+The panel should include:
+
+Embed:
+Title
+Description
+Footer
+Timestamp
+Server Icon
+
+Buttons:
+
+🎫 Create Ticket
+
+When clicked:
+- Create a private ticket channel.
+- Channel name:
+ticket-username
+
+Permissions:
+User
+Bot
+Administrators
+Configured Ticket Access Users
+Support Role (if configured)
+
+Prevent duplicate tickets:
+One open ticket per user.
+
+==================================================
+
+/ticketaccess add
+
+Option:
+User
+
+Adds a user to the Ticket Staff list.
+
+Users added here can:
+
+- Claim Tickets
+- Delete Tickets
+- Delete + Transcript
+- Mark Done
+
+Store in:
+
+ticketAccess.json
+
+==================================================
+
+/ticketaccess remove
+
+Option:
+User
+
+Removes a user from Ticket Staff.
+
+==================================================
+BUTTONS INSIDE EVERY TICKET
+==================================================
+
+━━━━━━━━━━━━━━━━━━
+
+📌 CLAIM
+
+Button:
+Claim
+
+Permissions:
+
+Administrator
+
+OR
+
+User inside ticketAccess.json
+
+When pressed:
+
+If not already claimed:
+
+- Ticket becomes claimed.
+- Save claimer.
+- Rename channel:
+
+claimed-username
+
+Send embed:
+
+Ticket Claimed
+
+Claimed By:
+@User
+
+Disable Claim button.
+
+Prevent others from claiming.
+
+━━━━━━━━━━━━━━━━━━
+
+✅ MARK AS DONE
+
+Permissions:
+
+Administrator
+
+OR
+
+Ticket Access User
+
+When clicked:
+
+Send embed:
+
+Ticket marked as completed.
+
+This ticket will automatically close in **12 hours**.
+
+Rename channel:
+
+done-username
+
+Disable Mark Done button.
+
+Start 12-hour countdown.
+
+After 12 hours:
+
+Delete ticket automatically.
+
+━━━━━━━━━━━━━━━━━━
+
+🗑 DELETE TICKET
+
+Permissions:
+
+Administrator
+
+OR
+
+Ticket Access User
+
+When clicked:
+
+Ask confirmation.
+
+Buttons:
+
+Yes Delete
+
+Cancel
+
+If confirmed:
+
+Delete ticket.
+
+Remove from tickets.json.
+
+━━━━━━━━━━━━━━━━━━
+
+📄 DELETE + TRANSCRIPT
+
+Permissions:
+
+Administrator
+
+OR
+
+Ticket Access User
+
+When clicked:
+
+Generate transcript.
+
+Transcript should include:
+
+Username
+
+Display Name
+
+Timestamp
+
+Every message
+
+Embeds
+
+Attachments (URLs)
+
+Buttons pressed
+
+Save transcript as:
+
+HTML
+
+Also create:
+
+TXT version
+
+Send transcript to:
+
+Configured Transcript Channel
+
+Then delete ticket.
+
+Remove from tickets.json.
+
+==================================================
+TICKET INFORMATION
+==================================================
+
+Inside every ticket send an embed:
+
+Opened By
+
+Created Time
+
+Ticket ID
+
+Claim Status
+
+Status
+
+Buttons underneath.
+
+==================================================
+OPTIONAL FEATURES
+==================================================
+
+Automatically mention support role.
+
+Ticket counter.
+
+Unique Ticket IDs.
+
+Example:
+
+#001
+
+#002
+
+#003
+
+==================================================
+LOGGING
+==================================================
+
+Log:
+
+Ticket Created
+
+Ticket Claimed
+
+Ticket Marked Done
+
+Ticket Deleted
+
+Transcript Created
+
+Log Channel configurable.
+
+==================================================
+JSON STORAGE
+==================================================
+
+tickets.json
+
+Store:
+
+Ticket ID
+
+User ID
+
+Channel ID
+
+Created Time
+
+Claimed
+
+Claimed By
+
+Status
+
+ticketAccess.json
+
+Store:
+
+Authorized User IDs
+
+config.json
+
+Store:
+
+Ticket Category
+
+Transcript Channel
+
+Log Channel
+
+Support Role
+
+==================================================
+PERMISSIONS
+==================================================
+
+Ticket Creator:
+Can view and chat.
+
+Administrators:
+Full access.
+
+Ticket Access Users:
+Full ticket management.
+
+Everyone else:
+Cannot view ticket.
+
+==================================================
+EMBEDS
+==================================================
+
+Professional Discord embeds.
+
+Colors:
+
+Green
+
+Blue
+
+Yellow
+
+Red
+
+Include:
+
+Footer
+
+Timestamp
+
+Server Icon
+
+==================================================
+ERROR HANDLING
+==================================================
+
+Prevent:
+
+Multiple open tickets
+
+Missing permissions
+
+Invalid channels
+
+Deleted ticket errors
+
+Already claimed ticket
+
+Already marked done
+
+==================================================
+README
+
+Generate complete README explaining:
+
+Installation
+
+Bot Setup
+
+Configuration
+
+Commands
+
+Permissions
+
+How Ticket Access works
+
+How Transcript works
+
+==================================================
+FINAL GOAL
+
+Generate the ENTIRE ticket system with every file fully completed.
+
+No TODOs.
+
+No placeholders.
