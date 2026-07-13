@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { successEmbed, errorEmbed, moderationLogEmbed } from '../../utils/embeds.js';
-import { getLogChannel } from '../../utils/guildConfig.js';
+import { successEmbed, errorEmbed } from '../../utils/embeds.js';
 import { checkUserHierarchy } from '../../utils/permissions.js';
 import { logger } from '../../utils/logger.js';
 
@@ -53,10 +52,6 @@ export default {
     }
 
     await interaction.reply({ embeds: [successEmbed('Member Banned', `**${target.tag}** has been banned.\n**Reason:** ${reason}`)] });
-
-    const logChannel = await getLogChannel(interaction.guild);
-    if (logChannel) {
-      await logChannel.send({ embeds: [moderationLogEmbed('Member Banned', interaction.user, target, reason)] }).catch(() => {});
-    }
+    // The guildBanAdd event handles the moderation log for every ban (bot-issued or manual).
   },
 };

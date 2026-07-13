@@ -1,6 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { successEmbed, errorEmbed, moderationLogEmbed } from '../../utils/embeds.js';
-import { getLogChannel } from '../../utils/guildConfig.js';
+import { successEmbed, errorEmbed } from '../../utils/embeds.js';
 import { checkUserHierarchy } from '../../utils/permissions.js';
 import { logger } from '../../utils/logger.js';
 
@@ -53,10 +52,6 @@ export default {
     }
 
     await interaction.reply({ embeds: [successEmbed('Member Kicked', `**${target.tag}** has been kicked.\n**Reason:** ${reason}`)] });
-
-    const logChannel = await getLogChannel(interaction.guild);
-    if (logChannel) {
-      await logChannel.send({ embeds: [moderationLogEmbed('Member Kicked', interaction.user, target, reason)] }).catch(() => {});
-    }
+    // The guildMemberRemove event detects the kick via the audit log and logs it there.
   },
 };
