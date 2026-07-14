@@ -19,6 +19,7 @@ A production-ready Discord moderation bot built with discord.js v14 — slash co
 - **Admin:** `/setwelcome`, `/setgoodbye`, `/createticketpanel`, `/ticketaccess add|remove`, `/settranscriptchannel`
 - **Voice:** `/247 enable|disable`, `/record`, `/save-record`
 - **Fun:** `/coinflip`, `/8ball`
+- **Auto-React:** `/autoreact set|remove`
 
 ## Ticket System
 
@@ -50,6 +51,12 @@ Create a new file under `src/commands/<category>/` exporting `{ data, permission
 - Recording audio is written to `src/data/recordings/<guildId>/<timestamp>/` and deleted automatically after `/save-record` sends it.
 - Requires the **Manage Server** permission and the bot's **Connect** permission.
 
+## Auto-React
+
+- `/autoreact set <channel> <emojis>` — every new message posted in that channel automatically gets reacted to with the given emojis (space-separated, e.g. `👍 🎉` or a custom emoji like `<:pepe:123456789012345678>`). The command test-reacts to a throwaway message first and rejects any emoji it can't use.
+- `/autoreact remove <channel>` — stops auto-reacting in that channel.
+- Requires the **Manage Server** permission and the bot's **Add Reactions** permission.
+
 ## Data Storage
 
 - `src/data/warnings.json` — per-guild, per-user warning history.
@@ -58,6 +65,7 @@ Create a new file under `src/commands/<category>/` exporting `{ data, permission
 - `src/data/ticketAccess.json` — per-guild list of user IDs granted ticket-staff access.
 - `src/data/vc247.json` — per-guild 24/7 voice channel config.
 - `src/data/recordings/` — temporary per-session audio while a recording is active (auto-deleted after saving).
+- `src/data/autoReact.json` — per-guild, per-channel list of emojis to auto-react with.
 
 All files are created automatically on first run if missing.
 
