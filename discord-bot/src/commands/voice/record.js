@@ -1,7 +1,10 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
+import { entersState, VoiceConnectionStatus } from '@discordjs/voice';
 import { successEmbed, errorEmbed } from '../../utils/embeds.js';
 import { joinChannel } from '../../handlers/voiceManager.js';
 import { startRecording, isRecording } from '../../handlers/recording.js';
+
+const CONNECTION_READY_TIMEOUT_MS = 15_000;
 
 export default {
   data: new SlashCommandBuilder()
@@ -32,6 +35,18 @@ export default {
       connection = joinChannel(interaction.channel);
     } catch (err) {
       return interaction.reply({ embeds: [errorEmbed('Could Not Connect', `I couldn't join this voice channel: ${err.message}`)], ephemeral: true });
+    }
+
+    // Wait until the voice connection is fully established before subscribing to
+    // speaking events — starting the session too early means the receiver misses
+    // everyone's speaking notifications on a cold join, capturing zero audio.
+    try {
+      await entersState(connection, VoiceConnectionStatus.Ready, CONNECTION_READY_TIMEOUT_MS);
+    } catch (err) {
+      return interaction.reply({
+        embeds: [errorEmbed('Could Not Connect', "I couldn't establish a stable voice connection in time. Please try again.")],
+        ephemeral: true,
+      });
     }
 
     await startRecording(interaction.guild.id, connection);
