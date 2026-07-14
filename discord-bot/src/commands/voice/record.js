@@ -30,11 +30,15 @@ export default {
       });
     }
 
+    // Joining + waiting for the connection to be Ready can take longer than Discord's
+    // 3-second interaction ack window, so defer immediately and edit the reply after.
+    await interaction.deferReply();
+
     let connection;
     try {
       connection = joinChannel(interaction.channel);
     } catch (err) {
-      return interaction.reply({ embeds: [errorEmbed('Could Not Connect', `I couldn't join this voice channel: ${err.message}`)], ephemeral: true });
+      return interaction.editReply({ embeds: [errorEmbed('Could Not Connect', `I couldn't join this voice channel: ${err.message}`)] });
     }
 
     // Wait until the voice connection is fully established before subscribing to
@@ -43,15 +47,14 @@ export default {
     try {
       await entersState(connection, VoiceConnectionStatus.Ready, CONNECTION_READY_TIMEOUT_MS);
     } catch (err) {
-      return interaction.reply({
+      return interaction.editReply({
         embeds: [errorEmbed('Could Not Connect', "I couldn't establish a stable voice connection in time. Please try again.")],
-        ephemeral: true,
       });
     }
 
     await startRecording(interaction.guild.id, connection);
 
-    await interaction.reply({
+    await interaction.editReply({
       embeds: [successEmbed('Recording Started', 'I am now recording everyone speaking in this voice channel. Use `/save-record` to stop and get the audio.')],
     });
   },
