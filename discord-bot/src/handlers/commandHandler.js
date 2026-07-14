@@ -60,6 +60,13 @@ export async function registerSlashCommands(client) {
         ? `Registered ${body.length} commands to guild ${guildId} (instant).`
         : `Registered ${body.length} global commands (may take up to 1 hour to propagate).`,
     );
+
+    // Registering to a single guild while global commands still exist makes every
+    // command show up twice in that guild. Wipe the global set whenever GUILD_ID is used.
+    if (guildId) {
+      await client.application.commands.set([]);
+      logger.info('Cleared global commands to avoid duplicates while GUILD_ID is set.');
+    }
   } catch (err) {
     logger.error(`Failed to auto-register slash commands: ${err}`);
   }
