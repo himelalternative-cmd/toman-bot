@@ -8,9 +8,12 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import ffmpegPath from 'ffmpeg-static';
 import { logger } from '../utils/logger.js';
+import { DATA_DIR } from '../utils/jsonStorage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const RECORDINGS_DIR = path.join(__dirname, '..', 'data', 'recordings');
+// Recordings are stored under the same configurable DATA_DIR as the JSON stores, so
+// they land on the persistent volume too when DATA_DIR points at one.
+const RECORDINGS_DIR = path.join(DATA_DIR, 'recordings');
 
 const SAMPLE_RATE = 48_000;
 const CHANNELS = 2;

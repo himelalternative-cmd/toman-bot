@@ -5,7 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { logger } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, '..', 'data');
+// DATA_DIR can be pointed at a mounted persistent volume (e.g. Railway Volumes) via the
+// DATA_DIR env var, so bot data survives redeploys instead of living in the ephemeral
+// container filesystem. Falls back to the in-repo data/ folder for local development.
+export const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, '..', 'data');
 
 function ensureFile(fileName, defaultData) {
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });

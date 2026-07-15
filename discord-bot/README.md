@@ -69,9 +69,12 @@ Create a new file under `src/commands/<category>/` exporting `{ data, permission
 
 All files are created automatically on first run if missing.
 
+By default everything above lives under `src/data/` inside the bot's own filesystem. That's fine for local development, but most hosts (including Railway) rebuild the container from a fresh copy of the repo on every deploy — anything written to the local disk at runtime, and any data file that's tracked in git, gets wiped or reset to its last-committed snapshot. Set `DATA_DIR` to a persistent volume's mount path (see below) so this data survives redeploys and bot restarts.
+
 ## Hosting on Railway
 
 1. Push this `discord-bot/` folder to its own GitHub repo (or deploy it as a subdirectory service if Railway supports monorepo root-directory configuration).
 2. Create a new Railway project from that repo, set the root directory to `discord-bot` if needed.
 3. Add the `DISCORD_TOKEN`, `CLIENT_ID`, and optionally `GUILD_ID` environment variables in Railway's dashboard.
-4. Set the start command to `npm start` (Railway auto-detects this from `package.json`).
+4. **Attach a Volume so data survives redeploys:** in the service's **Settings → Volumes** tab, click **New Volume**, mount it at `/data` (any path works, just be consistent). Then add a `DATA_DIR=/data` environment variable. Without this, every redeploy resets warnings, tickets, 24/7 config, auto-react settings, and recordings back to empty.
+5. Set the start command to `npm start` (Railway auto-detects this from `package.json`).
