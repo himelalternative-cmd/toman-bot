@@ -17,7 +17,7 @@ A production-ready Discord moderation bot built with discord.js v14 — slash co
 - **Info:** `/serverinfo`, `/userinfo`, `/avatar`, `/banner`, `/roleinfo`, `/channelinfo`, `/botinfo`
 - **Utility:** `/ping`, `/invite`, `/help`, `/uptime`
 - **Admin:** `/setwelcome`, `/setgoodbye`, `/createticketpanel`, `/ticketaccess add|remove`, `/settranscriptchannel`
-- **Voice:** `/247 enable|disable`, `/record`, `/save-record`
+- **Voice:** `/247 enable|disable`
 - **Fun:** `/coinflip`, `/8ball`
 - **Auto-React:** `/autoreact set|remove`
 
@@ -43,14 +43,6 @@ Create a new file under `src/commands/<category>/` exporting `{ data, permission
 - `/247 disable` leaves the channel and turns auto-rejoin off.
 - Requires the **Manage Server** permission and the bot's **Connect**/**Speak** permissions in that channel.
 
-## Voice Recording
-
-- `/record` and `/save-record` only work from inside a voice channel's own text chat (the "Chat" tab in a VC) — using them in a normal text channel returns an error.
-- `/record` joins the voice channel (if not already connected) and starts recording every member who speaks, each to their own in-sync track.
-- `/save-record` stops the recording, mixes every speaker's track into a single MP3 with `ffmpeg`, and sends it right there in the VC chat. Recordings over Discord's ~8MB upload limit will fail to send — keep sessions reasonably short.
-- Recording audio is written to `src/data/recordings/<guildId>/<timestamp>/` and deleted automatically after `/save-record` sends it.
-- Requires the **Manage Server** permission and the bot's **Connect** permission.
-
 ## Auto-React
 
 - `/autoreact set <channel> <emojis>` — every new message posted in that channel automatically gets reacted to with the given emojis (space-separated, e.g. `👍 🎉` or a custom emoji like `<:pepe:123456789012345678>`). The command test-reacts to a throwaway message first and rejects any emoji it can't use.
@@ -64,7 +56,6 @@ Create a new file under `src/commands/<category>/` exporting `{ data, permission
 - `src/data/tickets.json` — open/done ticket records per guild (ticket ID, opener, channel, claim/done status).
 - `src/data/ticketAccess.json` — per-guild list of user IDs granted ticket-staff access.
 - `src/data/vc247.json` — per-guild 24/7 voice channel config.
-- `src/data/recordings/` — temporary per-session audio while a recording is active (auto-deleted after saving).
 - `src/data/autoReact.json` — per-guild, per-channel list of emojis to auto-react with.
 
 All files are created automatically on first run if missing.
@@ -76,5 +67,5 @@ By default everything above lives under `src/data/` inside the bot's own filesys
 1. Push this `discord-bot/` folder to its own GitHub repo (or deploy it as a subdirectory service if Railway supports monorepo root-directory configuration).
 2. Create a new Railway project from that repo, set the root directory to `discord-bot` if needed.
 3. Add the `DISCORD_TOKEN`, `CLIENT_ID`, and optionally `GUILD_ID` environment variables in Railway's dashboard.
-4. **Attach a Volume so data survives redeploys:** in the service's **Settings → Volumes** tab, click **New Volume**, mount it at `/data` (any path works, just be consistent). Then add a `DATA_DIR=/data` environment variable. Without this, every redeploy resets warnings, tickets, 24/7 config, auto-react settings, and recordings back to empty.
+4. **Attach a Volume so data survives redeploys:** in the service's **Settings → Volumes** tab, click **New Volume**, mount it at `/data` (any path works, just be consistent). Then add a `DATA_DIR=/data` environment variable. Without this, every redeploy resets warnings, tickets, 24/7 config, and auto-react settings back to empty.
 5. Set the start command to `npm start` (Railway auto-detects this from `package.json`).
