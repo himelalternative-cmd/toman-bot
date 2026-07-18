@@ -1,17 +1,18 @@
-// Handles incoming messages: auto-react and anti-spam enforcement.
+// Handles incoming messages: auto-react, anti-spam, and anti-ping enforcement.
 import { getAutoReactEmojis } from '../utils/autoReactStorage.js';
 import { isAntiSpamEnabled, recordMessage, clearUserMessages } from '../utils/antiSpamStorage.js';
+import { getRestrictedRoles } from '../utils/antiPingStorage.js';
 import { getLogChannel } from '../utils/guildConfig.js';
 import { moderationLogEmbed } from '../utils/embeds.js';
 import { logger } from '../utils/logger.js';
 
 // ─── Anti-spam config ─────────────────────────────────────────────────────────
-const DELETE_THRESHOLD   = 4;     // messages in DELETE_WINDOW_MS → delete only
-const DELETE_WINDOW_MS   = 5000;  // 5 seconds
-const TIMEOUT_THRESHOLD  = 10;   // messages in TIMEOUT_WINDOW_MS → delete + timeout
-const TIMEOUT_WINDOW_MS  = 10000; // 10 seconds
-const TIMEOUT_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-const SPAM_REASON        = 'Spamming [Bokachoda Khanki magir pola]';
+const DELETE_THRESHOLD    = 4;
+const DELETE_WINDOW_MS    = 5000;
+const TIMEOUT_THRESHOLD   = 10;
+const TIMEOUT_WINDOW_MS   = 10000;
+const TIMEOUT_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
+const SPAM_REASON         = 'Spamming [Bokachoda Khanki magir pola]';
 
 export default {
   name: 'messageCreate',
@@ -30,79 +31,135 @@ export default {
       }
     }
 
+    // ── Anti-ping ───────────────────────────────────────────────────────────
+    // Check before anti-spam so a blocked ping also gets caught early.
+    await handleAntiPing(message);
+
     // ── Anti-spam ───────────────────────────────────────────────────────────
-    if (!isAntiSpamEnabled(message.guild.id)) return;
-
-    const now        = Date.now();
-    const guildId    = message.guild.id;
-    const userId     = message.author.id;
-
-    // recordMessage returns ALL timestamps within the last 10 s (includes
-    // messages already deleted by a previous rule-1 trigger — the tracker is
-    // in-memory and doesn't care whether Discord deleted the message).
-    const timestamps = recordMessage(guildId, userId, now);
-
-    const inTimeout = timestamps.filter((t) => now - t <= TIMEOUT_WINDOW_MS).length;
-    const inDelete  = timestamps.filter((t) => now - t <= DELETE_WINDOW_MS).length;
-
-    if (inTimeout >= TIMEOUT_THRESHOLD) {
-      // ── Rule 2: 10+ messages in 10 s (including previously deleted ones) ─
-      // → bulk-delete whatever is still visible, then 3-day timeout.
-      clearUserMessages(guildId, userId);
-
-      const member = await message.guild.members.fetch(userId).catch(() => null);
-      if (!member) return;
-
-      // Delete still-visible messages from the last 10 s
-      try {
-        const fetched = await message.channel.messages.fetch({ limit: 50 });
-        const toDelete = fetched.filter(
-          (m) => m.author.id === userId && now - m.createdTimestamp <= TIMEOUT_WINDOW_MS,
-        );
-        if (toDelete.size > 0) await message.channel.bulkDelete(toDelete, true).catch(() => {});
-      } catch (err) {
-        logger.warn(`Anti-spam: failed to bulk-delete messages for ${message.author.tag}: ${err}`);
-      }
-
-      // Apply 3-day timeout
-      if (member.moderatable) {
-        try {
-          await member.timeout(TIMEOUT_DURATION_MS, SPAM_REASON);
-          logger.info(`Anti-spam: timed out ${message.author.tag} (${userId}) in ${guildId} for 3 days`);
-        } catch (err) {
-          logger.error(`Anti-spam: failed to timeout ${message.author.tag}: ${err}`);
-        }
-
-        // Log to mod-log channel
-        const logChannel = await getLogChannel(message.guild);
-        if (logChannel) {
-          await logChannel
-            .send({
-              embeds: [
-                moderationLogEmbed('Auto-Spam Timeout', message.client.user, message.author, SPAM_REASON, [
-                  { name: 'Duration', value: '3 days', inline: true },
-                  { name: 'Trigger', value: `${inTimeout} messages in 10 seconds`, inline: true },
-                ]),
-              ],
-            })
-            .catch(() => {});
-        }
-      }
-    } else if (inDelete >= DELETE_THRESHOLD) {
-      // ── Rule 1: 4+ messages in 5 s → delete only (no timeout yet) ────────
-      // Timestamps are NOT cleared so they keep counting toward the 10-message threshold.
-      try {
-        const fetched = await message.channel.messages.fetch({ limit: 50 });
-        const toDelete = fetched.filter(
-          (m) => m.author.id === userId && now - m.createdTimestamp <= DELETE_WINDOW_MS,
-        );
-        if (toDelete.size > 0) {
-          await message.channel.bulkDelete(toDelete, true).catch(() => {});
-          logger.info(`Anti-spam: deleted ${toDelete.size} messages from ${message.author.tag} in ${guildId}`);
-        }
-      } catch (err) {
-        logger.warn(`Anti-spam: failed to bulk-delete messages for ${message.author.tag}: ${err}`);
-      }
+    if (isAntiSpamEnabled(message.guild.id)) {
+      await handleAntiSpam(message);
     }
   },
 };
+
+// ─── Anti-ping ───────────────────────────────────────────────────────────────
+
+async function handleAntiPing(message) {
+  // Only act if there are any mentions at all
+  if (!message.mentions.roles.size && !message.mentions.users.size) return;
+
+  const guildId        = message.guild.id;
+  const restrictedRoles = getRestrictedRoles(guildId);
+  if (restrictedRoles.length === 0) return;
+
+  // Fetch the author as a full GuildMember to get their roles
+  const author = await message.guild.members.fetch(message.author.id).catch(() => null);
+  if (!author) return;
+
+  // Is this author restricted?
+  const isRestricted = author.roles.cache.some((r) => restrictedRoles.includes(r.id));
+  if (!isRestricted) return;
+
+  const authorHighest = author.roles.highest.position;
+
+  // Check mentioned roles — is any of them higher than the author?
+  const pinggedHigherRole = message.mentions.roles.some(
+    (role) => role.position > authorHighest,
+  );
+
+  // Check mentioned users — does any of them have a higher top role than the author?
+  let pinggedHigherUser = false;
+  if (message.mentions.users.size > 0) {
+    const mentionedMembers = await Promise.all(
+      message.mentions.users.map((u) => message.guild.members.fetch(u.id).catch(() => null)),
+    );
+    pinggedHigherUser = mentionedMembers.some(
+      (m) => m && m.roles.highest.position > authorHighest,
+    );
+  }
+
+  if (!pinggedHigherRole && !pinggedHigherUser) return;
+
+  // Delete the offending message
+  await message.delete().catch(() => {});
+
+  // Send a temporary notice visible to the whole channel (deletes after 2 s)
+  const notice = await message.channel
+    .send(`<@${message.author.id}> Sorry, You cant ping anyone that have higher role than you`)
+    .catch(() => null);
+
+  if (notice) {
+    setTimeout(() => notice.delete().catch(() => {}), 2000);
+  }
+
+  logger.info(
+    `Anti-ping: blocked ${message.author.tag} (restricted role) from pinging a higher role/user in guild ${guildId}`,
+  );
+}
+
+// ─── Anti-spam ───────────────────────────────────────────────────────────────
+
+async function handleAntiSpam(message) {
+  const now     = Date.now();
+  const guildId = message.guild.id;
+  const userId  = message.author.id;
+
+  const timestamps = recordMessage(guildId, userId, now);
+  const inTimeout  = timestamps.filter((t) => now - t <= TIMEOUT_WINDOW_MS).length;
+  const inDelete   = timestamps.filter((t) => now - t <= DELETE_WINDOW_MS).length;
+
+  if (inTimeout >= TIMEOUT_THRESHOLD) {
+    // Rule 2: 10+ in 10 s → delete visible + 3-day timeout
+    clearUserMessages(guildId, userId);
+
+    const member = await message.guild.members.fetch(userId).catch(() => null);
+    if (!member) return;
+
+    try {
+      const fetched   = await message.channel.messages.fetch({ limit: 50 });
+      const toDelete  = fetched.filter(
+        (m) => m.author.id === userId && now - m.createdTimestamp <= TIMEOUT_WINDOW_MS,
+      );
+      if (toDelete.size > 0) await message.channel.bulkDelete(toDelete, true).catch(() => {});
+    } catch (err) {
+      logger.warn(`Anti-spam: bulk-delete failed for ${message.author.tag}: ${err}`);
+    }
+
+    if (member.moderatable) {
+      try {
+        await member.timeout(TIMEOUT_DURATION_MS, SPAM_REASON);
+        logger.info(`Anti-spam: timed out ${message.author.tag} for 3 days in guild ${guildId}`);
+      } catch (err) {
+        logger.error(`Anti-spam: timeout failed for ${message.author.tag}: ${err}`);
+      }
+
+      const logChannel = await getLogChannel(message.guild);
+      if (logChannel) {
+        await logChannel
+          .send({
+            embeds: [
+              moderationLogEmbed('Auto-Spam Timeout', message.client.user, message.author, SPAM_REASON, [
+                { name: 'Duration', value: '3 days', inline: true },
+                { name: 'Trigger', value: `${inTimeout} messages in 10 seconds`, inline: true },
+              ]),
+            ],
+          })
+          .catch(() => {});
+      }
+    }
+  } else if (inDelete >= DELETE_THRESHOLD) {
+    // Rule 1: 4+ in 5 s → delete only
+    try {
+      const fetched  = await message.channel.messages.fetch({ limit: 50 });
+      const toDelete = fetched.filter(
+        (m) => m.author.id === userId && now - m.createdTimestamp <= DELETE_WINDOW_MS,
+      );
+      if (toDelete.size > 0) {
+        await message.channel.bulkDelete(toDelete, true).catch(() => {});
+        logger.info(`Anti-spam: deleted ${toDelete.size} msgs from ${message.author.tag} in guild ${guildId}`);
+      }
+    } catch (err) {
+      logger.warn(`Anti-spam: bulk-delete failed for ${message.author.tag}: ${err}`);
+    }
+  }
+}
