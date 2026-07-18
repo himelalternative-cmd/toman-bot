@@ -2,15 +2,15 @@
 import { getAutoReactEmojis } from '../utils/autoReactStorage.js';
 import { isAntiSpamEnabled, recordMessage, clearUserMessages } from '../utils/antiSpamStorage.js';
 import { getLogChannel } from '../utils/guildConfig.js';
-import { warningEmbed, moderationLogEmbed } from '../utils/embeds.js';
+import { moderationLogEmbed } from '../utils/embeds.js';
 import { logger } from '../utils/logger.js';
 
 // ─── Anti-spam config ─────────────────────────────────────────────────────────
-const DELETE_THRESHOLD   = 4;   // messages
-const DELETE_WINDOW_MS   = 5000; // 5 seconds  → delete only
-const TIMEOUT_THRESHOLD  = 10;  // messages
-const TIMEOUT_WINDOW_MS  = 10000; // 10 seconds → delete + 3-day timeout
-const TIMEOUT_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days in ms
+const DELETE_THRESHOLD   = 4;     // messages in DELETE_WINDOW_MS → delete only
+const DELETE_WINDOW_MS   = 5000;  // 5 seconds
+const TIMEOUT_THRESHOLD  = 10;   // messages in TIMEOUT_WINDOW_MS → delete + timeout
+const TIMEOUT_WINDOW_MS  = 10000; // 10 seconds
+const TIMEOUT_DURATION_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 const SPAM_REASON        = 'Spamming [Bokachoda Khanki magir pola]';
 
 export default {
@@ -36,31 +36,35 @@ export default {
     const now        = Date.now();
     const guildId    = message.guild.id;
     const userId     = message.author.id;
+
+    // recordMessage returns ALL timestamps within the last 10 s (includes
+    // messages already deleted by a previous rule-1 trigger — the tracker is
+    // in-memory and doesn't care whether Discord deleted the message).
     const timestamps = recordMessage(guildId, userId, now);
 
-    // Count messages inside each window
     const inTimeout = timestamps.filter((t) => now - t <= TIMEOUT_WINDOW_MS).length;
     const inDelete  = timestamps.filter((t) => now - t <= DELETE_WINDOW_MS).length;
 
     if (inTimeout >= TIMEOUT_THRESHOLD) {
-      // ── Rule 2: 10+ in 10 s → delete all + 3-day timeout ────────────────
+      // ── Rule 2: 10+ messages in 10 s (including previously deleted ones) ─
+      // → bulk-delete whatever is still visible, then 3-day timeout.
       clearUserMessages(guildId, userId);
 
       const member = await message.guild.members.fetch(userId).catch(() => null);
       if (!member) return;
 
-      // Delete recent messages in the channel (fetch last 50, keep only this user's)
+      // Delete still-visible messages from the last 10 s
       try {
         const fetched = await message.channel.messages.fetch({ limit: 50 });
         const toDelete = fetched.filter(
           (m) => m.author.id === userId && now - m.createdTimestamp <= TIMEOUT_WINDOW_MS,
         );
-        await message.channel.bulkDelete(toDelete, true).catch(() => {});
+        if (toDelete.size > 0) await message.channel.bulkDelete(toDelete, true).catch(() => {});
       } catch (err) {
         logger.warn(`Anti-spam: failed to bulk-delete messages for ${message.author.tag}: ${err}`);
       }
 
-      // Apply timeout if the bot has permission and the member is moderatable
+      // Apply 3-day timeout
       if (member.moderatable) {
         try {
           await member.timeout(TIMEOUT_DURATION_MS, SPAM_REASON);
@@ -69,19 +73,7 @@ export default {
           logger.error(`Anti-spam: failed to timeout ${message.author.tag}: ${err}`);
         }
 
-        // DM the user
-        await message.author
-          .send({
-            embeds: [
-              warningEmbed(
-                '⏳ You Have Been Timed Out',
-                `You have been timed out in **${message.guild.name}** for **3 days**.\n**Reason:** ${SPAM_REASON}`,
-              ),
-            ],
-          })
-          .catch(() => {}); // user may have DMs disabled
-
-        // Log to mod log channel
+        // Log to mod-log channel
         const logChannel = await getLogChannel(message.guild);
         if (logChannel) {
           await logChannel
@@ -97,29 +89,20 @@ export default {
         }
       }
     } else if (inDelete >= DELETE_THRESHOLD) {
-      // ── Rule 1: 4+ in 5 s → delete all (no timeout yet) ─────────────────
+      // ── Rule 1: 4+ messages in 5 s → delete only (no timeout yet) ────────
+      // Timestamps are NOT cleared so they keep counting toward the 10-message threshold.
       try {
         const fetched = await message.channel.messages.fetch({ limit: 50 });
         const toDelete = fetched.filter(
           (m) => m.author.id === userId && now - m.createdTimestamp <= DELETE_WINDOW_MS,
         );
-        await message.channel.bulkDelete(toDelete, true).catch(() => {});
-        logger.info(`Anti-spam: deleted ${toDelete.size} messages from ${message.author.tag} in ${guildId}`);
+        if (toDelete.size > 0) {
+          await message.channel.bulkDelete(toDelete, true).catch(() => {});
+          logger.info(`Anti-spam: deleted ${toDelete.size} messages from ${message.author.tag} in ${guildId}`);
+        }
       } catch (err) {
         logger.warn(`Anti-spam: failed to bulk-delete messages for ${message.author.tag}: ${err}`);
       }
-
-      // Warn the user via DM (once — they may receive several if they keep spamming)
-      await message.author
-        .send({
-          embeds: [
-            warningEmbed(
-              '⚠️ Slow Down!',
-              `Your messages in **${message.guild.name}** were deleted because you sent them too fast.\nContinued spamming will result in a **3-day timeout**.`,
-            ),
-          ],
-        })
-        .catch(() => {});
     }
   },
 };
