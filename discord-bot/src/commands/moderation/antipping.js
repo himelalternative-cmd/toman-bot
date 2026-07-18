@@ -3,25 +3,38 @@ import { successEmbed, errorEmbed, infoEmbed } from '../../utils/embeds.js';
 import { getRestrictedRoles, addRestrictedRole, removeRestrictedRole } from '../../utils/antiPingStorage.js';
 import { logger } from '../../utils/logger.js';
 
+// Build role options helper — role1 is required, role2-role5 optional
+function addRoleOptions(sub, label) {
+  sub.addRoleOption((opt) =>
+    opt.setName('role1').setDescription(`${label} (1)`).setRequired(true),
+  );
+  for (let i = 2; i <= 5; i++) {
+    sub.addRoleOption((opt) =>
+      opt.setName(`role${i}`).setDescription(`${label} (${i})`).setRequired(false),
+    );
+  }
+  return sub;
+}
+
 export default {
   data: new SlashCommandBuilder()
     .setName('anti-ping')
     .setDescription('Prevent selected roles from pinging members or roles ranked above them.')
     .addSubcommand((sub) =>
-      sub
-        .setName('add')
-        .setDescription('Restrict a role from pinging anyone higher than them.')
-        .addRoleOption((opt) =>
-          opt.setName('role').setDescription('The role to restrict').setRequired(true),
-        ),
+      addRoleOptions(
+        sub
+          .setName('add')
+          .setDescription('Restrict up to 5 roles from pinging anyone higher than them.'),
+        'Role to restrict',
+      ),
     )
     .addSubcommand((sub) =>
-      sub
-        .setName('remove')
-        .setDescription('Remove the ping restriction from a role.')
-        .addRoleOption((opt) =>
-          opt.setName('role').setDescription('The role to un-restrict').setRequired(true),
-        ),
+      addRoleOptions(
+        sub
+          .setName('remove')
+          .setDescription('Remove the ping restriction from up to 5 roles.'),
+        'Role to un-restrict',
+      ),
     )
     .addSubcommand((sub) =>
       sub
@@ -51,39 +64,62 @@ export default {
       });
     }
 
-    const role = interaction.options.getRole('role', true);
+    // Collect all provided role options (role1–role5), filter nulls
+    const roles = [1, 2, 3, 4, 5]
+      .map((n) => interaction.options.getRole(`role${n}`))
+      .filter(Boolean);
 
     if (sub === 'add') {
-      const roleIds = getRestrictedRoles(guildId);
-      if (roleIds.includes(role.id)) {
-        return interaction.reply({
-          embeds: [errorEmbed('Already Restricted', `${role} is already restricted from pinging higher roles.`)],
-          ephemeral: true,
-        });
+      const existing = getRestrictedRoles(guildId);
+      const added   = [];
+      const skipped = [];
+
+      for (const role of roles) {
+        if (existing.includes(role.id)) {
+          skipped.push(role.toString());
+        } else {
+          addRestrictedRole(guildId, role.id);
+          added.push(role.toString());
+          logger.info(`Anti-ping: restricted role ${role.name} (${role.id}) in guild ${guildId}`);
+        }
       }
-      addRestrictedRole(guildId, role.id);
-      logger.info(`Anti-ping: added restriction for role ${role.name} (${role.id}) in guild ${guildId}`);
+
+      const lines = [];
+      if (added.length)   lines.push(`**Restricted:** ${added.join(', ')}`);
+      if (skipped.length) lines.push(`**Already restricted:** ${skipped.join(', ')}`);
+
       return interaction.reply({
         embeds: [
           successEmbed(
-            'Restriction Added',
-            `${role} can no longer ping roles or members ranked above them.\nThey will receive a silent 2-second notice if they try.`,
+            'Anti-Ping Updated',
+            lines.join('\n') +
+              '\n\nThese roles can no longer ping anyone ranked above them.\n' +
+              'They will get a silent 2-second notice if they try.',
           ),
         ],
       });
     }
 
     if (sub === 'remove') {
-      const removed = removeRestrictedRole(guildId, role.id);
-      if (!removed) {
-        return interaction.reply({
-          embeds: [errorEmbed('Not Found', `${role} is not in the restricted list.`)],
-          ephemeral: true,
-        });
+      const removed  = [];
+      const notFound = [];
+
+      for (const role of roles) {
+        const ok = removeRestrictedRole(guildId, role.id);
+        if (ok) {
+          removed.push(role.toString());
+          logger.info(`Anti-ping: un-restricted role ${role.name} (${role.id}) in guild ${guildId}`);
+        } else {
+          notFound.push(role.toString());
+        }
       }
-      logger.info(`Anti-ping: removed restriction for role ${role.name} (${role.id}) in guild ${guildId}`);
+
+      const lines = [];
+      if (removed.length)  lines.push(`**Removed:** ${removed.join(', ')}`);
+      if (notFound.length) lines.push(`**Not in list:** ${notFound.join(', ')}`);
+
       return interaction.reply({
-        embeds: [successEmbed('Restriction Removed', `${role} can now ping freely again.`)],
+        embeds: [successEmbed('Anti-Ping Updated', lines.join('\n'))],
       });
     }
   },
