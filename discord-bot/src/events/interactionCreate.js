@@ -1,5 +1,6 @@
 // Routes interactions to their handler: slash commands get permission/cooldown
-// checks, ticket buttons get routed to handlers/ticketActions.js.
+// checks, ticket buttons get routed to handlers/ticketActions.js,
+// and rbxacc buttons/modals get routed to handlers/rbxAccHandler.js.
 import { PermissionsBitField } from 'discord.js';
 import { errorEmbed } from '../utils/embeds.js';
 import { missingPermissionReply, missingBotPermissionReply } from '../utils/permissions.js';
@@ -14,6 +15,11 @@ import {
   handleDeleteCancelButton,
   handleTranscriptButton,
 } from '../handlers/ticketActions.js';
+import {
+  handleBuyRobuxButton,
+  handleRbxModal,
+  handleDoneOrderButton,
+} from '../handlers/rbxAccHandler.js';
 
 function permissionLabel(flag) {
   const entry = Object.entries(PermissionsBitField.Flags).find(([, value]) => value === flag);
@@ -44,20 +50,13 @@ async function handleTicketButton(interaction) {
 
   try {
     switch (action) {
-      case 'ticket_claim':
-        return await handleClaimButton(interaction, rest[0]);
-      case 'ticket_done':
-        return await handleDoneButton(interaction, rest[0]);
-      case 'ticket_delete':
-        return await handleDeleteButton(interaction, rest[0]);
-      case 'ticket_delete_confirm':
-        return await handleDeleteConfirmButton(interaction, rest[0]);
-      case 'ticket_delete_cancel':
-        return await handleDeleteCancelButton(interaction);
-      case 'ticket_transcript':
-        return await handleTranscriptButton(interaction, rest[0]);
-      default:
-        return; // Not a ticket button — ignore.
+      case 'ticket_claim':          return await handleClaimButton(interaction, rest[0]);
+      case 'ticket_done':           return await handleDoneButton(interaction, rest[0]);
+      case 'ticket_delete':         return await handleDeleteButton(interaction, rest[0]);
+      case 'ticket_delete_confirm': return await handleDeleteConfirmButton(interaction, rest[0]);
+      case 'ticket_delete_cancel':  return await handleDeleteCancelButton(interaction);
+      case 'ticket_transcript':     return await handleTranscriptButton(interaction, rest[0]);
+      default: return;
     }
   } catch (err) {
     logger.error(`Error handling ticket button "${interaction.customId}": ${err.stack || err}`);
@@ -70,19 +69,66 @@ async function handleTicketButton(interaction) {
   }
 }
 
+async function handleRbxButton(interaction) {
+  if (!interaction.inGuild()) return;
+  const [action, ...rest] = interaction.customId.split(':');
+
+  try {
+    switch (action) {
+      case 'rbxacc_buy':  return await handleBuyRobuxButton(interaction);
+      case 'rbxacc_done': return await handleDoneOrderButton(interaction, rest[0]);
+      default: return;
+    }
+  } catch (err) {
+    logger.error(`Error handling rbxacc button "${interaction.customId}": ${err.stack || err}`);
+    const payload = { embeds: [errorEmbed('Something Went Wrong', 'An unexpected error occurred.')], ephemeral: true };
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp(payload).catch(() => {});
+    } else {
+      await interaction.reply(payload).catch(() => {});
+    }
+  }
+}
+
 export default {
   name: 'interactionCreate',
   async execute(interaction, client) {
+    // String select menus
     if (interaction.isStringSelectMenu() && interaction.customId.startsWith('ticket_type_select:')) {
       return handleTicketTypeSelect(interaction);
     }
-    if (interaction.isButton()) return handleTicketButton(interaction);
+
+    // Buttons
+    if (interaction.isButton()) {
+      if (interaction.customId.startsWith('ticket_')) return handleTicketButton(interaction);
+      if (interaction.customId.startsWith('rbxacc_')) return handleRbxButton(interaction);
+      return;
+    }
+
+    // Modals
+    if (interaction.isModalSubmit()) {
+      if (interaction.customId === 'rbxacc_order_modal') {
+        try {
+          return await handleRbxModal(interaction);
+        } catch (err) {
+          logger.error(`Error handling rbxacc modal: ${err.stack || err}`);
+          const payload = { embeds: [errorEmbed('Something Went Wrong', 'An unexpected error occurred.')], ephemeral: true };
+          if (interaction.replied || interaction.deferred) {
+            await interaction.followUp(payload).catch(() => {});
+          } else {
+            await interaction.reply(payload).catch(() => {});
+          }
+        }
+      }
+      return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
-    // Permission checks — only relevant inside a guild.
+    // Permission checks
     if (interaction.inGuild()) {
       for (const permission of command.permissions ?? []) {
         if (!interaction.memberPermissions?.has(permission)) {
@@ -96,7 +142,7 @@ export default {
       }
     }
 
-    // Cooldown check.
+    // Cooldown check
     const remaining = applyCooldown(client.cooldowns, command, interaction.user.id);
     if (remaining > 0) {
       return interaction.reply({

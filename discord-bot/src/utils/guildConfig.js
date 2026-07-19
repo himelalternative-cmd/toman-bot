@@ -1,5 +1,5 @@
 // Per-guild configuration backed by src/data/config.json.
-// Shape: { [guildId]: { logChannelId, welcome: {...}, goodbye: {...} } }
+// Shape: { [guildId]: { logChannelId, orderChannelId, rbxAllowedRoles, welcome: {...}, goodbye: {...} } }
 import { readJson, writeJson } from './jsonStorage.js';
 
 const FILE = 'config.json';
@@ -46,4 +46,26 @@ export async function getTranscriptChannel(guild) {
   const config = getGuildConfig(guild.id);
   if (!config.transcriptChannelId) return null;
   return guild.channels.cache.get(config.transcriptChannelId) ?? (await guild.channels.fetch(config.transcriptChannelId).catch(() => null));
+}
+
+// ─── Robux shop ───────────────────────────────────────────────────────────────
+
+export function setOrderChannel(guildId, channelId) {
+  return updateGuildConfig(guildId, { orderChannelId: channelId });
+}
+
+export async function getOrderChannel(guild) {
+  const config = getGuildConfig(guild.id);
+  if (!config.orderChannelId) return null;
+  return guild.channels.cache.get(config.orderChannelId) ?? (await guild.channels.fetch(config.orderChannelId).catch(() => null));
+}
+
+/** @returns {string[]} role IDs allowed to use !rbxacc beyond admins/ticket-staff */
+export function getRbxAllowedRoles(guildId) {
+  const config = getGuildConfig(guildId);
+  return config.rbxAllowedRoles ?? [];
+}
+
+export function setRbxAllowedRoles(guildId, roleIds) {
+  return updateGuildConfig(guildId, { rbxAllowedRoles: roleIds });
 }
